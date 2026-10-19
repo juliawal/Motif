@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "motif"
+version = "0.1.0"
+description = "Identify candidate methylation factors from paired TCGA expression and methylation data."
+requires-python = ">=3.11,<3.12"
+authors = [{name = "Julia Wallnig", email = "julia.wallnig@gmx.net"}]
+
+dependencies = [
+    "pandas>=1.5",
+    "numpy>=1.23",
+    "scipy>=1.10",
+    "scikit-learn>=1.1",
+    "statsmodels>=0.13",
+    "networkx>=3.0",
+    "requests>=2.28",
+    "PyYAML>=6.0",
+    "dask[distributed]>=2021.10",
+    "pydeseq2>=0.4",
+    "pyfaidx>=0.7",
+    "pybedtools>=0.9",
+    "pyjaspar>=2.0",
+]
+
+[project.scripts]
+motif = "pipeline.run_pipeline:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "adapted_grnboost", "data_processing", "filtering", "selection", "utils",
+    "evaluation", "evaluation.*", "pipeline", "scripts",
+]
+
+[tool.setuptools.package-data]
+adapted_grnboost = ["LICENSE.upstream.txt"]

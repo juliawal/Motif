@@ -1,0 +1,183 @@
+# Shared Slurm settings; adapt this for your cluster.
+slurm_partition: work
+slurm_account: iwbn # null = no account specified here
+slurm_jobs: 32 # maximum parallel jobs per Snakemake run
+
+# Stage A: data preparation
+
+# Included cohorts.
+cohorts:
+  - ACC
+  - BLCA
+  - BRCA
+  - CESC
+  - CHOL
+  - COAD
+  - DLBC
+  - ESCA
+  - GBM
+  - HNSC
+  - KICH
+  - KIRC
+  - KIRP
+  - LAML
+  - LGG
+  - LIHC
+  - LUAD
+  - LUSC
+  - MESO
+  - OV
+  - PAAD
+  - PCPG
+  - PRAD
+  - READ
+  - SARC
+  - SKCM_METASTATIC
+  - SKCM_PRIMARY
+  - STAD
+  - TGCT
+  - THCA
+  - THYM
+  - UCEC
+  - UCS
+  - UVM
+
+# Number of runs for splits (must be even!).
+n_seeds: 10
+
+# Split TCGA-SKCM into two cohorts by TCGA sample type. 
+split:
+  project: SKCM
+  cohorts:
+    SKCM_METASTATIC: "06"  # metastatic
+    SKCM_PRIMARY: "01"     # primary solid tumour
+
+# Sample type for (not split) cohorts.
+primary_tumour_type:
+  default: "01"
+  LAML: "03"  # primary blood-derived cancer
+
+# Restrict gene selection to the coding-gene list when asked for.
+only_coding_genes: true
+coding_gene_list_file: "resources/gencode.v22.protein_coding_gene_ids.txt"
+
+# Number of highly variable genes to select.
+n_hvgs: 5000
+
+# Slurm parameters for stage A.
+prepare_threads: 4
+prepare_mem_mb: 31000
+prepare_runtime_minutes: 360
+prepare_max_parallel: 8
+
+# Remove samples with more than sample_max_missing_share samples in methylation or expression data.
+sample_max_missing_share: 0.30
+
+# Filter or aggregate CpGs based on given gene list.
+should_filter_cpgs: false
+should_aggregate_cpgs: false
+cpg_keep_promoters: true
+cpg_keep_bodies: false
+cpg_filter_genes_file: "resources/gencode.v22.protein_coding_gene_ids.txt"
+cpg_probe_coordinates_file: "resources/HM450.hg38.manifest.gencode.v36.probeMap"
+gene_regions_gtf_file: "resources/gencode.v22.annotation.gtf.gz"
+promoter_length: 1500
+promoter_overlap: 200
+
+# Stage B: GRN inference
+
+# Maximum number of edges reported by GRNBoost2.
+grn_limit: 1000000
+
+# Slurm parameters for stage B.
+grn_threads: 32
+grn_mem_mb: null
+grn_runtime_minutes: 1440
+grn_max_parallel: 32
+
+# Stage C: filtering
+
+# CpG coordinates for C2 and F4, and transcript TSS annotations for C2.
+cpg_coordinates_file: "resources/cpg_annot.tsv"
+gene_tss_annotations_file: "resources/gene_annot.tsv"
+
+# C1: sex filter
+
+fdr_alpha: 0.20 # BH alpha
+m_value_boundary_shift: 1.0e-4 # for converting beta values to M values (Harman shift)
+
+# C2: reverse causality filter
+
+reverse_tss_window: 1000 # maximum distance in bp between a CpG and an MF transcript TSS
+
+# Stage D: stability analysis
+
+# Number of distinct complementary split-half pairs used for stability analysis.
+stability_max_splits: 20
+
+# Edge cuts evaluated in the stability grid.
+stability_k_edges: [1000, 10000, 100000]
+
+# Number of best settings that are going to be evaluated.
+n_selected_stable_settings: 3
+
+stability_split_seed: 42
+
+# Stage E: aggregation and MF selection
+
+# MF list length used in stability analysis and selection.
+n_mfs: 30
+
+# Stage F: evaluation
+
+# Gene information for evaluation.
+gene_annotation_file: "resources/gene_annotation.v22.tsv" # gene IDs, symbols, aliases, chromosome, TSS and gene type
+
+# F1: binding site validation
+ 
+window_around_cpg: 250
+bg_to_target_ratio: 10
+n_gc_bins: 10
+binding_background_seed: 42
+fimo_pvalue: 1e-4
+fimo_max_stored_scores: 1000000
+genome_fasta: "resources/hg38.fa"
+genome_fasta_index: "resources/hg38.fa.fai"
+chipseq_dir: "resources/chipseq_peaks"
+chipseq_overview: "resources/chipseq_peaks/chipseq_overview.tsv"
+jaspar_meme: "resources/JASPAR2024_CORE_vertebrates.meme"
+jaspar_sqlite: "resources/JASPAR2024.sqlite"
+cpg_annotations_file: "resources/HM450.hg38.manifest.zhou.tsv.gz"
+cpg_gene_annotations_file: "resources/cpg_gene_annotations.hg38.gencode.v22.tsv.gz" # island context and TSS distance
+
+# F2: PPI proximity
+
+hippie_release: "2.3"
+hippie_network_file: "resources/hippie.txt"
+
+n_random_sets: 30000 # random gene sets drawn for proximity measures
+degree_bin_min_size: 100 # minimum genes per degree bin
+proximity_pagerank_alpha: 0.85 # default from NetworkX 
+proximity_random_seed: 42
+
+# F3: gene set enrichment 
+
+gene_set_dir: "resources/gene_sets"
+gene_set_enrichment_libraries:
+  - MSigDB_Hallmark_2020
+  - Reactome_2022
+  - GO_Biological_Process_2023
+  - GO_Molecular_Function_2023
+min_overlap: 3
+
+# F4: mediation
+
+max_cpg_tss_distance_bp: 1000000
+mediation_min_samples: 100
+mediation_fdr_alpha: 0.05 
+
+# Stage G: evaluation summary
+
+n_enrichment_top_terms: 6
+
+
