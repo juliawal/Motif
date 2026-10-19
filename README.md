@@ -13,7 +13,6 @@ conda activate motif
 ```
 
 Set the cohorts, Slurm partition and account in [config.yaml](config.yaml).
-The paths below match this configuration.
 
 ## Input data
 
@@ -22,7 +21,7 @@ Download these four files from the UCSC Xena GDC Pan-Cancer dataset to `data/raw
 | File | Contents |
 | --- | --- |
 | [GDC-PANCAN.htseq_fpkm-uq.tsv](https://gdc.xenahubs.net/download/GDC-PANCAN.htseq_fpkm-uq.tsv) | Gene expression; log2(FPKM-UQ + 1) |
-| [GDC-PANCAN.htseq_counts.tsv](https://gdc.xenahubs.net/download/GDC-PANCAN.htseq_counts.tsv) | Counts stored as log2(count + 1) |
+| [GDC-PANCAN.htseq_counts.tsv](https://gdc.xenahubs.net/download/GDC-PANCAN.htseq_counts.tsv) | Counts; log2(count + 1) |
 | [GDC-PANCAN.methylation450.tsv](https://gdc.xenahubs.net/download/GDC-PANCAN.methylation450.tsv) | 450K methylation beta values |
 | [GDC-PANCAN.basic_phenotype.tsv](https://gdc.xenahubs.net/download/GDC-PANCAN.basic_phenotype.tsv) | Sample IDs, project, sample type, sex and age |
 
@@ -114,26 +113,26 @@ python -m scripts.download_gene_set_enrichment_libraries \
   --config config.yaml --output-dir resources/gene_sets
 ```
 
-The libraries come from [Enrichr](https://maayanlab.cloud/Enrichr/):
+The gene set libraries are downloaded from [Enrichr](https://maayanlab.cloud/Enrichr/):
 `MSigDB_Hallmark_2020`, `Reactome_2022`, `GO_Biological_Process_2023` and
 `GO_Molecular_Function_2023`. ChIP-seq peaks are downloaded after F0, when the
-selected MFs are known (see below).
+selected MFs are known.
 
 ## Run
 
-Run the complete pipeline on Slurm:
+Run the complete pipeline:
 
 ```bash
 motif all
 ```
 
-This runs A to F0, downloads [ReMap 2022](https://remap.univ-amu.fr/download_page)
-ChIP-seq peaks for selected MFs without a JASPAR motif, then runs F1 to G.
-If a run stops, call `motif all` again with the same inputs and configuration.
+This runs stage A to F0, downloads [ReMap 2022](https://remap.univ-amu.fr/download_page)
+ChIP-seq peaks for selected MFs without a JASPAR motif, then runs stage F1 to G.
+If a run stops, call `motif all` again. Snakemake will continue from were it stopped, running only the steps that still need to be completed.
 
 To run one stage, use its name, for example `motif A`, `motif D` or `motif F2`.
 These commands run only that stage; its input files from earlier stages must
-already exist. To run everything one stage at a time:
+already exist. To run one stage at a time:
 
 ```bash
 motif A
@@ -151,9 +150,7 @@ motif F4
 motif G
 ```
 
-For execution on the current machine instead of Slurm, add `--executor local`
-and a core limit, for example `motif all --executor local --cores 32` or
-`motif D --executor local --cores 4`.
+To run on your own computer instead of using Slurm, add `--executor local` and a core limit, for example `motif all --executor local --cores 32`.
 
 ## Stages
 
@@ -174,7 +171,7 @@ and a core limit, for example `motif all --executor local --cores 32` or
 
 ## Results
 
-**A to D: per cohort**, under `results/<cohort>/`:
+**Stage A to D: per cohort**, under `results/<cohort>/`:
 
 | Stage | Files |
 | --- | --- |
@@ -184,7 +181,7 @@ and a core limit, for example `motif all --executor local --cores 32` or
 | C2 | `filtered/retained_edges.tsv`: pairs retained after both filters |
 | D | `stability/grid_stability.tsv`: stability of every tested setting |
 
-**D: comparison across cohorts**, under `results/stability_comparison/`:
+**Stage D: comparison across cohorts**, under `results/stability_comparison/`:
 
 | File | Contents |
 | --- | --- |
@@ -199,7 +196,7 @@ A setting specifies the edge cut, run aggregation and MF scoring method.
 The current configuration keeps three settings (`n_selected_stable_settings`).
 Each top setting is used for every cohort.
 
-**E to F4: per setting rank**, under `results/selected_settings/rank_<rank>/`:
+**Stage E to F4: per setting rank**, under `results/selected_settings/rank_<rank>/`:
 
 | Stage | Path within the rank folder |
 | --- | --- |
@@ -219,9 +216,5 @@ Each top setting is used for every cohort.
 - `evaluation_summary.tsv`: counts of testable cohorts and full MF lists for each evaluation stage.
 - `enrichment_top_terms.tsv`: the top enrichment terms per cohort, selected across libraries.
 
-Use the saved results to make plots and manuscript tables separately by hand.
-
 The GRNBoost2 code in [adapted_grnboost/](adapted_grnboost/) is adapted from Arboreto.
-The package lives directly in the project directory and is imported as
-`adapted_grnboost`. Its license is kept in
-[LICENSE.upstream.txt](adapted_grnboost/LICENSE.upstream.txt).
+The package is imported as `adapted_grnboost`. You can find its license in [LICENSE.upstream.txt](adapted_grnboost/LICENSE.upstream.txt).
