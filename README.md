@@ -1,6 +1,6 @@
 # MOTIF
 
-MOTIF identifies candidate methylation factors from paired TCGA gene expression and DNA methylation data.
+MOTIF identifies candidate methylation factors from paired TCGA gene expression and DNA methylation data from the UCSC Xena GDC Pan-Cancer dataset.
 It combines GRNBoost2, filtering, stability selection and evaluation of the selected candidates.
 
 ## Installation
@@ -11,13 +11,6 @@ directory.
 ```bash
 conda env create -f environment.yml
 conda activate motif
-```
-
-After updating an existing checkout, refresh the installation in the active
-`motif` environment:
-
-```bash
-python -m pip install -e .
 ```
 
 Set the cohorts, Slurm partition and account in [config.yaml](config.yaml).
