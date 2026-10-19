@@ -1,6 +1,6 @@
 # Motif
 
-Motif identifies candidate methylation factors from paired TCGA gene expression and DNA methylation data from the UCSC Xena GDC Pan-Cancer dataset.
+Motif (**M**ethylati**o**n Fac**t**ors Ident**if**iers) identifies candidate methylation factors from paired TCGA gene expression and DNA methylation data from the UCSC Xena GDC Pan-Cancer dataset.
 It combines GRNBoost2, filtering, stability selection and evaluation of the selected candidates.
 
 ## Installation
