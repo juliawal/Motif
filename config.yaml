@@ -91,7 +91,7 @@ grn_limit: 1000000
 
 # Slurm parameters for stage B.
 grn_threads: 32
-grn_mem_mb: null
+grn_mem_mb: 230000
 grn_runtime_minutes: 1440
 grn_max_parallel: 32
 
