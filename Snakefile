@@ -8,6 +8,7 @@ if config["n_seeds"] % 2:
 cohorts = config["cohorts"]
 run_seeds = list(range(1, config["n_seeds"] + 1))
 selection_ranks = list(range(1, config["n_selected_stable_settings"] + 1))
+evaluation_folder = config["evaluation_folder"]
 split_cohorts = config["split"]["cohorts"]
 use_cpg_regions = config["should_filter_cpgs"] or config["should_aggregate_cpgs"]
 
@@ -74,6 +75,11 @@ rule evaluation:
     input:
         expand("results/selected_settings/rank_{selection_rank}/evaluation_summary/evaluation_summary.tsv", selection_rank=selection_ranks),
         expand("results/selected_settings/rank_{selection_rank}/evaluation_summary/enrichment_top_terms.tsv", selection_rank=selection_ranks),
+
+
+rule union_evaluation:
+    input:
+        expand("results/union/{cohort}/evaluation/{filename}", cohort=cohorts, filename=["binding_sites.tsv", "ppi_proximity.tsv", "gene_set_enrichment.tsv", "mediation.tsv"]),
 
 
 rule prepare_data:
@@ -395,7 +401,7 @@ rule preprocess_evaluation:
 
 rule binding_site_validation:
     input:
-        mf_cpg_pairs = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
+        mf_cpg_pairs = evaluation_folder + "/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
         cpg_annotations_file = config["cpg_annotations_file"],
         cpg_names = "results/{cohort}/prepared/target_names.tsv",
         cpg_gene_annotations_file = config["cpg_gene_annotations_file"],
@@ -406,9 +412,9 @@ rule binding_site_validation:
         jaspar_sqlite = config["jaspar_sqlite"],
         chipseq_resources = get_chipseq_files,
     output:
-        results = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/binding_sites_per_mf.tsv",
-        summary = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/binding_sites.tsv",
-        binding_sites_results_directory = directory("results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/binding_evidence"),
+        results = evaluation_folder + "/{cohort}/evaluation/binding_sites_per_mf.tsv",
+        summary = evaluation_folder + "/{cohort}/evaluation/binding_sites.tsv",
+        binding_sites_results_directory = directory(evaluation_folder + "/{cohort}/evaluation/binding_evidence"),
     params:
         chipseq_dir = config["chipseq_dir"],
         window_around_cpg = config["window_around_cpg"],
@@ -451,12 +457,12 @@ rule binding_site_validation:
 
 rule ppi_proximity:
     input:
-        mf_cpg_pairs = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
+        mf_cpg_pairs = evaluation_folder + "/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
         hippie_network_file = config["hippie_network_file"],
         gene_annotation_file = config["gene_annotation_file"],
         gene_ids = "results/{cohort}/prepared/regulator_names.tsv",
     output:
-        results = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/ppi_proximity.tsv",
+        results = evaluation_folder + "/{cohort}/evaluation/ppi_proximity.tsv",
     params:
         n_random_sets = config["n_random_sets"],
         degree_bin_min_size = config["degree_bin_min_size"],
@@ -484,13 +490,13 @@ rule ppi_proximity:
 
 rule gene_set_enrichment:
     input:
-        mf_cpg_pairs = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
+        mf_cpg_pairs = evaluation_folder + "/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
         background_gene_ids = "results/{cohort}/prepared/regulator_names.tsv",
         gene_annotation_file = config["gene_annotation_file"],
         gene_set_files = [
             f"{config['gene_set_dir']}/{gene_set_library}.gmt" for gene_set_library in config["gene_set_enrichment_libraries"]],
     output:
-        results = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/gene_set_enrichment.tsv",
+        results = evaluation_folder + "/{cohort}/evaluation/gene_set_enrichment.tsv",
     params:
         min_overlap = config["min_overlap"],
         gene_set_dir = config["gene_set_dir"],
@@ -513,7 +519,7 @@ rule gene_set_enrichment:
 
 rule mediation:
     input:
-        mf_cpg_pairs = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
+        mf_cpg_pairs = evaluation_folder + "/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
         prepared_samples = "results/{cohort}/prepared/samples.tsv",
         metadata = "data/{cohort}/age_and_sex.tsv",
         gene_expression_file = "data/{cohort}/expression.tsv",
@@ -521,8 +527,8 @@ rule mediation:
         cpg_coordinates_file = config["cpg_coordinates_file"],
         gene_annotation_file = config["gene_annotation_file"],
     output:
-        triplets = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/mediation_triplets.tsv",
-        summary = "results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/mediation.tsv",
+        triplets = evaluation_folder + "/{cohort}/evaluation/mediation_triplets.tsv",
+        summary = evaluation_folder + "/{cohort}/evaluation/mediation.tsv",
     params:
         cohort = "{cohort}",
         max_cpg_tss_distance_bp = config["max_cpg_tss_distance_bp"],

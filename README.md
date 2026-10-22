@@ -12,7 +12,7 @@ conda env create -f environment.yml
 conda activate motif
 ```
 
-Set the cohorts, Slurm partition and account in [config.yaml](config.yaml).
+Set the cohorts, Slurm partition, account and job limit in [config.yaml](config.yaml).
 
 ## Input data
 
@@ -128,11 +128,11 @@ motif all
 
 This runs stage A to F0, downloads [ReMap 2022](https://remap.univ-amu.fr/download_page)
 ChIP-seq peaks for selected MFs without a JASPAR motif, then runs stage F1 to G.
-If a run stops, call `motif all` again. Snakemake will continue from were it stopped, running only the steps that still need to be completed.
+If a run stops, call `motif all` again. Snakemake will continue from where it stopped, running only the steps that still need to be completed.
 
 To run one stage, use its name, for example `motif A`, `motif D` or `motif F2`.
-These commands run only that stage; its input files from earlier stages must
-already exist. To run one stage at a time:
+These commands run only that stage; its input files from earlier stages must already exist.
+To run one stage at a time:
 
 ```bash
 motif A
@@ -151,6 +151,29 @@ motif G
 ```
 
 To run on your own computer instead of using Slurm, add `--executor local` and a core limit, for example `motif all --executor local --cores 32`.
+
+## Additional union evaluation
+
+After completing the main pipeline, you can additionally evaluate the union of MFs and MF–CpG pairs from ranks 1–3. Run these commands from the project directory.
+
+Create the Union of ranks 1–3 for all cohorts in `config.yaml`:
+
+```bash
+python -m scripts.prepare_union
+```
+
+Run F1–F4 on the union MFs using the Slurm settings from `config.yaml`:
+
+```bash
+snakemake union_evaluation \
+  --config evaluation_folder=results/union --executor slurm \
+  --jobs "$(python -c 'import yaml; print(yaml.safe_load(open("config.yaml"))["slurm_jobs"])')" \
+  --default-resources slurm_account="$(python -c 'import yaml; print(yaml.safe_load(open("config.yaml"))["slurm_account"])')" \
+  --latency-wait 60 --rerun-incomplete \
+  --allowed-rules union_evaluation binding_site_validation ppi_proximity gene_set_enrichment mediation
+```
+
+Inputs are saved under `results/union/<cohort>/`; evaluation results are in `results/union/<cohort>/evaluation/`.
 
 ## Stages
 

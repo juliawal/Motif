@@ -129,6 +129,7 @@ stability_split_seed: 42
 n_mfs: 30
 
 # Stage F: evaluation
+evaluation_folder: "results/selected_settings/rank_{selection_rank}"
 
 # Gene information for evaluation.
 gene_annotation_file: "resources/gene_annotation.v22.tsv" # gene IDs, symbols, aliases, chromosome, TSS and gene type
