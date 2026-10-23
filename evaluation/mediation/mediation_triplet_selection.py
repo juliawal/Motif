@@ -17,7 +17,7 @@ def select_triplets(pairs_with_cpg_coordinates, gene_annotation, expression_gene
     is_protein_coding = gene_annotation["gene_type"] == "protein_coding"
     has_expression_data = gene_annotation["ensembl_id"].isin(expression_gene_ids)
     g_prime_candidates = gene_annotation.loc[is_protein_coding & has_expression_data, ["ensembl_id", "symbol", "chromosome", "tss"]].copy()
-    mediation_triplets = pd.DataFrame(columns=["MF", "MF_ensembl", "CpG", "G_prime", "G_prime_ensembl", "G_prime_distance_bp"])
+    mediation_triplet_rows = []
     for mf_cpg_pair in pairs_with_cpg_coordinates.itertuples():
         g_primes_distances_to_cpg = g_prime_candidates["tss"] - mf_cpg_pair.cpg_pos
         g_primes_on_same_chromosome = g_prime_candidates["chromosome"] == mf_cpg_pair.cpg_chrom
@@ -33,5 +33,6 @@ def select_triplets(pairs_with_cpg_coordinates, gene_annotation, expression_gene
         g_primes_near_cpg["absolute_distance"] = g_primes_near_cpg["distance"].abs()
         g_primes_near_cpg = g_primes_near_cpg.sort_values(["absolute_distance", "ensembl_id"])
         for gene in g_primes_near_cpg.itertuples(index=False):
-            mediation_triplets.loc[len(mediation_triplets)] = [mf_cpg_pair.MF, mf_cpg_pair.MF_ensembl, mf_cpg_pair.CpG, gene.symbol, gene.ensembl_id, gene.distance]
+            mediation_triplet_rows.append([mf_cpg_pair.MF, mf_cpg_pair.MF_ensembl, mf_cpg_pair.CpG, gene.symbol, gene.ensembl_id, gene.distance])
+    mediation_triplets = pd.DataFrame.from_records(mediation_triplet_rows, columns=["MF", "MF_ensembl", "CpG", "G_prime", "G_prime_ensembl", "G_prime_distance_bp"])
     return mediation_triplets
