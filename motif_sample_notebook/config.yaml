@@ -1,0 +1,82 @@
+slurm_partition: work
+slurm_account: iwbn
+slurm_jobs: 32
+cohorts:
+- THYM
+n_seeds: 4
+split:
+  project: SKCM
+  cohorts:
+    SKCM_METASTATIC: '06'
+    SKCM_PRIMARY: '01'
+primary_tumour_type:
+  default: '01'
+  LAML: '03'
+only_coding_genes: true
+coding_gene_list_file: resources/gencode.v22.protein_coding_gene_ids.txt
+n_hvgs: 200
+prepare_threads: 2
+prepare_mem_mb: 2048
+prepare_runtime_minutes: 360
+prepare_max_parallel: 1
+sample_max_missing_share: 0.3
+should_filter_cpgs: false
+should_aggregate_cpgs: false
+cpg_keep_promoters: true
+cpg_keep_bodies: false
+cpg_filter_genes_file: resources/gencode.v22.protein_coding_gene_ids.txt
+cpg_probe_coordinates_file: resources/HM450.hg38.manifest.gencode.v36.probeMap
+gene_regions_gtf_file: resources/gencode.v22.annotation.gtf.gz
+promoter_length: 1500
+promoter_overlap: 200
+grn_limit: 10000
+grn_threads: 2
+grn_mem_mb: 4096
+grn_runtime_minutes: 1440
+grn_max_parallel: 1
+cpg_coordinates_file: resources/cpg_annot.tsv
+gene_tss_annotations_file: resources/gene_annot.tsv
+fdr_alpha: 0.2
+m_value_boundary_shift: 0.0001
+reverse_tss_window: 1000
+stability_max_splits: 3
+stability_k_edges:
+- 100
+- 500
+- 1000
+n_selected_stable_settings: 1
+stability_split_seed: 42
+n_mfs: 10
+evaluation_folder: results/selected_settings/rank_{selection_rank}
+gene_annotation_file: resources/gene_annotation.v22.tsv
+window_around_cpg: 250
+bg_to_target_ratio: 2
+n_gc_bins: 5
+binding_background_seed: 42
+fimo_pvalue: 1e-4
+fimo_max_stored_scores: 1000000
+genome_fasta: resources/hg38.fa
+genome_fasta_index: resources/hg38.fa.fai
+remap_file: resources/remap2022_nr_macs2_hg38_v1_0.bed.gz
+chipseq_dir: results/chipseq_resources/remap2022_hg38
+jaspar_meme: resources/JASPAR2024_CORE_vertebrates.meme
+jaspar_sqlite: resources/JASPAR2024.sqlite
+cpg_annotations_file: resources/HM450.hg38.manifest.zhou.tsv.gz
+cpg_gene_annotations_file: resources/cpg_gene_annotations.hg38.gencode.v22.tsv.gz
+hippie_release: '2.3'
+hippie_network_file: resources/hippie.txt
+n_random_sets: 200
+degree_bin_min_size: 100
+proximity_pagerank_alpha: 0.85
+proximity_random_seed: 42
+gene_set_dir: resources/gene_sets
+gene_set_enrichment_libraries:
+- MSigDB_Hallmark_2020
+- Reactome_2022
+- GO_Biological_Process_2023
+- GO_Molecular_Function_2023
+min_overlap: 3
+max_cpg_tss_distance_bp: 1000000
+mediation_min_samples: 100
+mediation_fdr_alpha: 0.05
+n_enrichment_top_terms: 6
