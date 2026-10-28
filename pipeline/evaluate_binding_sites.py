@@ -4,7 +4,8 @@ import tempfile
 import pandas as pd
 from data_processing.expression_data_preparation import load_symbol_aliases 
 from evaluation.binding_site.select_background_cpgs import build_cpg_matching_categories, draw_random_matched_background_cpgs
-from evaluation.binding_site.find_chipseq_overlaps import cpgs_with_peak_overlap, peak_file_for_mf
+from evaluation.binding_site.find_chipseq_overlaps import cpgs_with_peak_overlap
+from scripts.download_and_prepare_chip_seq_peak_files import load_chipseq_peak_files
 from evaluation.binding_site.prepare_cpgs_for_binding_site_evaluation import compute_gc_fraction_by_cpg, extract_cpg_sequences, get_cpg_annotations, load_cpg_coordinates, write_cpg_sequences_as_fasta, compute_base_frequencies_for_fimo
 from evaluation.binding_site.compare_binding_hit_rates import create_binding_site_evaluation_results, calculate_hit_rate_sign_test, summarize_mf_hit_rates
 from evaluation.binding_site.select_binding_motifs import find_motifs_for_mfs_in_jaspar_database, write_selected_motifs 
@@ -23,7 +24,7 @@ def main():
     parser.add_argument("--bg-sampling-seed", type=int, required=True)
     parser.add_argument("--jaspar-meme", type=Path, required=True)
     parser.add_argument("--jaspar-sqlite", type=Path, required=True)
-    parser.add_argument("--chipseq-dir", type=Path, required=True)
+    parser.add_argument("--chipseq-peak-files", type=Path, required=True)
     parser.add_argument("--mf-cpg-pairs", type=Path, required=True)
     parser.add_argument("--cpg-annotations-file", type=Path, required=True)  
     parser.add_argument("--cpg-names", type=Path, required=True)
@@ -119,15 +120,14 @@ def main():
         cpg_coordinates_for_chipseq = cpg_coordinates.loc[cpg_coordinates.index.isin(cpgs_for_chipseq)] # for the peak overlap calculation
 
         # Compare target and background hit rates per MF.
-        chipseq_peak_files_by_mf = {}
+        chipseq_peak_files_by_mf = load_chipseq_peak_files(args.chipseq_peak_files, mfs_without_pwm)
         chipseq_hit_cpgs_by_mf = {}
         for mf_symbol in mfs_without_pwm:
-            chipseq_peak_file = peak_file_for_mf(mf_symbol, args.chipseq_dir, gene_symbol_aliases = gene_symbol_aliases)
-            chipseq_peak_files_by_mf[mf_symbol] = chipseq_peak_file
+            chipseq_peak_file = chipseq_peak_files_by_mf[mf_symbol]
             if chipseq_peak_file is None:
                 chipseq_hit_cpgs_by_mf[mf_symbol] = set()
             else:
-                chipseq_hit_cpgs_by_mf[mf_symbol] = cpgs_with_peak_overlap(cpg_coordinates_for_chipseq, chipseq_peak_file, window_around_cpg=args.window_around_cpg)
+                chipseq_hit_cpgs_by_mf[mf_symbol] = cpgs_with_peak_overlap(cpg_coordinates_for_chipseq, chipseq_peak_file, window_around_cpg = args.window_around_cpg)
         chipseq_target_cpgs_by_mf = {mf_symbol: target_cpgs_by_mf[mf_symbol] for mf_symbol in mfs_without_pwm}
         chipseq_background_cpgs_by_mf = {mf_symbol: background_cpgs_by_mf[mf_symbol] for mf_symbol in mfs_without_pwm}
         summarized_chipseq_hit_rates = summarize_mf_hit_rates(chipseq_target_cpgs_by_mf, chipseq_background_cpgs_by_mf, chipseq_hit_cpgs_by_mf, "ChIP_seq")

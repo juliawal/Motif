@@ -8,9 +8,16 @@ if config["n_seeds"] % 2:
 cohorts = config["cohorts"]
 run_seeds = list(range(1, config["n_seeds"] + 1))
 selection_ranks = list(range(1, config["n_selected_stable_settings"] + 1))
-evaluation_folder = config["evaluation_folder"]
 split_cohorts = config["split"]["cohorts"]
 use_cpg_regions = config["should_filter_cpgs"] or config["should_aggregate_cpgs"]
+chipseq_resources_dir = Path(config["chipseq_dir"])
+
+evaluation_folder = config["evaluation_folder"]
+evaluation_cohort_folder = evaluation_folder + "/{cohort}"
+evaluation_prepared_folder = "results/{cohort}/prepared"
+if evaluation_folder == "results/manual_mfs":
+    evaluation_cohort_folder = evaluation_folder
+    evaluation_prepared_folder = evaluation_folder + "/prepared"
 
 
 def get_primary_tumour_type(cohort):
@@ -34,14 +41,6 @@ def require_cpg_level_targets(job):
     if config["should_aggregate_cpgs"]:
         raise ValueError("The stages after GRN inference require individual CpGs. Disable should_aggregate_cpgs or run only stage A snf stage B.")
     return f"results/{job.cohort}/prepared/target_names.tsv"
-
-
-def get_chipseq_files(job):
-    chipseq_files = []
-    for pattern in ("*.bed", "*.bed.gz", "*.narrowPeak", "*.narrowPeak.gz"):
-        for chipseq_file in Path(config["chipseq_dir"]).glob(pattern):
-            chipseq_files.append(str(chipseq_file))
-    return sorted(chipseq_files)
 
 
 rule all:
@@ -80,6 +79,13 @@ rule evaluation:
 rule union_evaluation:
     input:
         expand("results/union/{cohort}/evaluation/{filename}", cohort=cohorts, filename=["binding_sites.tsv", "ppi_proximity.tsv", "gene_set_enrichment.tsv", "mediation.tsv"]),
+
+
+rule manually_evaluation:
+    input:
+        "results/manual_mfs/evaluation/binding_sites.tsv",
+        "results/manual_mfs/evaluation/ppi_proximity.tsv",
+        "results/manual_mfs/evaluation/gene_set_enrichment.tsv",
 
 
 rule prepare_data:
@@ -399,24 +405,44 @@ rule preprocess_evaluation:
         "--output-mf-mapping {output.mapping}"
 
 
+rule prepare_chipseq_resources:
+    input:
+        pairs = expand("results/selected_settings/rank_{selection_rank}/{cohort}/evaluation_input/mf_cpg_pairs.tsv", selection_rank=selection_ranks, cohort=cohorts),
+        remap_file = config["remap_file"],
+        gene_annotation_file = config["gene_annotation_file"],
+        jaspar_meme = config["jaspar_meme"],
+        jaspar_sqlite = config["jaspar_sqlite"],
+    output:
+        resources = directory(str(chipseq_resources_dir)),
+    threads: 4
+    resources:
+        slurm_partition = config["slurm_partition"],
+        runtime = 120,
+        mem_mb = 24000,
+    shell:
+        "python -m scripts.download_and_prepare_chip_seq_peak_files prepare "
+        "--config config.yaml "
+        "--pairs {input.pairs:q} --output-dir {output.resources:q}"
+
+
 rule binding_site_validation:
     input:
-        mf_cpg_pairs = evaluation_folder + "/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
+        mf_cpg_pairs = evaluation_cohort_folder + "/evaluation_input/mf_cpg_pairs.tsv",
         cpg_annotations_file = config["cpg_annotations_file"],
-        cpg_names = "results/{cohort}/prepared/target_names.tsv",
+        cpg_names = evaluation_prepared_folder + "/target_names.tsv",
         cpg_gene_annotations_file = config["cpg_gene_annotations_file"],
         gene_annotation_file = config["gene_annotation_file"],
         hg38_genome = config["genome_fasta"],
         fasta_index = config["genome_fasta_index"],
         jaspar_meme = config["jaspar_meme"],
         jaspar_sqlite = config["jaspar_sqlite"],
-        chipseq_resources = get_chipseq_files,
+        chipseq_resources = str(chipseq_resources_dir),
     output:
-        results = evaluation_folder + "/{cohort}/evaluation/binding_sites_per_mf.tsv",
-        summary = evaluation_folder + "/{cohort}/evaluation/binding_sites.tsv",
-        binding_sites_results_directory = directory(evaluation_folder + "/{cohort}/evaluation/binding_evidence"),
+        results = evaluation_cohort_folder + "/evaluation/binding_sites_per_mf.tsv",
+        summary = evaluation_cohort_folder + "/evaluation/binding_sites.tsv",
+        binding_sites_results_directory = directory(evaluation_cohort_folder + "/evaluation/binding_evidence"),
     params:
-        chipseq_dir = config["chipseq_dir"],
+        chipseq_peak_files = str(chipseq_resources_dir / "peak_files.json"),
         window_around_cpg = config["window_around_cpg"],
         bg_to_target_ratio = config["bg_to_target_ratio"],
         n_gc_bins = config["n_gc_bins"],
@@ -439,7 +465,7 @@ rule binding_site_validation:
         "--gene-annotation-file {input.gene_annotation_file} "
         "--hg38-genome {input.hg38_genome} "
         "--fasta-index {input.fasta_index} "
-        "--chipseq-dir {params.chipseq_dir} "
+        "--chipseq-peak-files {params.chipseq_peak_files} "
         "--jaspar-meme {input.jaspar_meme} "
         "--jaspar-sqlite {input.jaspar_sqlite} "
         "--window-around-cpg {params.window_around_cpg} "
@@ -457,12 +483,12 @@ rule binding_site_validation:
 
 rule ppi_proximity:
     input:
-        mf_cpg_pairs = evaluation_folder + "/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
+        mf_cpg_pairs = evaluation_cohort_folder + "/evaluation_input/mf_cpg_pairs.tsv",
         hippie_network_file = config["hippie_network_file"],
         gene_annotation_file = config["gene_annotation_file"],
-        gene_ids = "results/{cohort}/prepared/regulator_names.tsv",
+        gene_ids = evaluation_prepared_folder + "/regulator_names.tsv",
     output:
-        results = evaluation_folder + "/{cohort}/evaluation/ppi_proximity.tsv",
+        results = evaluation_cohort_folder + "/evaluation/ppi_proximity.tsv",
     params:
         n_random_sets = config["n_random_sets"],
         degree_bin_min_size = config["degree_bin_min_size"],
@@ -490,13 +516,13 @@ rule ppi_proximity:
 
 rule gene_set_enrichment:
     input:
-        mf_cpg_pairs = evaluation_folder + "/{cohort}/evaluation_input/mf_cpg_pairs.tsv",
-        background_gene_ids = "results/{cohort}/prepared/regulator_names.tsv",
+        mf_cpg_pairs = evaluation_cohort_folder + "/evaluation_input/mf_cpg_pairs.tsv",
+        background_gene_ids = evaluation_prepared_folder + "/regulator_names.tsv",
         gene_annotation_file = config["gene_annotation_file"],
         gene_set_files = [
             f"{config['gene_set_dir']}/{gene_set_library}.gmt" for gene_set_library in config["gene_set_enrichment_libraries"]],
     output:
-        results = evaluation_folder + "/{cohort}/evaluation/gene_set_enrichment.tsv",
+        results = evaluation_cohort_folder + "/evaluation/gene_set_enrichment.tsv",
     params:
         min_overlap = config["min_overlap"],
         gene_set_dir = config["gene_set_dir"],

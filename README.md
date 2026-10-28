@@ -111,12 +111,14 @@ python -m scripts.build_fasta_index resources/hg38.fa
 # Download the libraries listed in config.yaml as GMT files.
 python -m scripts.download_gene_set_enrichment_libraries \
   --config config.yaml --output-dir resources/gene_sets
+
+# Download the complete ReMap catalogue.
+python -m scripts.download_and_prepare_chip_seq_peak_files download --config config.yaml
 ```
 
 The gene set libraries are downloaded from [Enrichr](https://maayanlab.cloud/Enrichr/):
 `MSigDB_Hallmark_2020`, `Reactome_2022`, `GO_Biological_Process_2023` and
-`GO_Molecular_Function_2023`. ChIP-seq peaks are downloaded after F0, when the
-selected MFs are known.
+`GO_Molecular_Function_2023`.
 
 ## Run
 
@@ -126,8 +128,8 @@ Run the complete pipeline:
 motif all
 ```
 
-This runs stage A to F0, downloads [ReMap 2022](https://remap.univ-amu.fr/download_page)
-ChIP-seq peaks for selected MFs without a JASPAR motif, then runs stage F1 to G.
+This runs stages A to F0, extracts local ReMap peaks for selected MFs without a usable JASPAR motif, then runs stage F1 to G.
+
 If a run stops, call `motif all` again. Snakemake will continue from where it stopped, running only the steps that still need to be completed.
 
 To run one stage, use its name, for example `motif A`, `motif D` or `motif F2`.
@@ -142,7 +144,6 @@ motif C2
 motif D
 motif E
 motif F0
-python -m scripts.download_chipseq_peaks --from-pipeline-results results --config config.yaml
 motif F1
 motif F2
 motif F3
@@ -154,26 +155,25 @@ To run on your own computer instead of using Slurm, add `--executor local` and a
 
 ## Additional union evaluation
 
-After completing the main pipeline, you can additionally evaluate the union of MFs and MF–CpG pairs from ranks 1–3. Run these commands from the project directory.
-
-Create the Union of ranks 1–3 for all cohorts in `config.yaml`:
-
-```bash
-python -m scripts.prepare_union
-```
-
-Run F1–F4 on the union MFs using the Slurm settings from `config.yaml`:
+After completing the main pipeline, evaluate the union of MFs and MF–CpG pairs
+from ranks 1–3 for all cohorts in `config.yaml`:
 
 ```bash
-snakemake union_evaluation \
-  --config evaluation_folder=results/union --executor slurm \
-  --jobs "$(python -c 'import yaml; print(yaml.safe_load(open("config.yaml"))["slurm_jobs"])')" \
-  --default-resources slurm_account="$(python -c 'import yaml; print(yaml.safe_load(open("config.yaml"))["slurm_account"])')" \
-  --latency-wait 60 --rerun-incomplete \
-  --allowed-rules union_evaluation binding_site_validation ppi_proximity gene_set_enrichment mediation
+motif union_evaluation
 ```
-
 Inputs are saved under `results/union/<cohort>/`; evaluation results are in `results/union/<cohort>/evaluation/`.
+
+## Additional manual MF evaluation
+
+After completing the main pipeline, evaluate a chosen group of MFs:
+
+```bash
+motif manually_evaluation --mfs SOX2 TP63 RUNX1
+```
+
+Inputs are saved under `results/manual_mfs/`; evaluation results are in `results/manual_mfs/evaluation/`.
+
+
 
 ## Stages
 
@@ -186,6 +186,7 @@ Inputs are saved under `results/union/<cohort>/`; evaluation results are in `res
 | D | Compare MF lists from split halves of the GRN runs using Kuncheva stability; rank settings across cohorts. |
 | E | Apply each selected setting to all runs, aggregate edges and select the top MFs per cohort. |
 | F0 | Add gene symbols and prepare the selected MF–CpG pairs for evaluation. |
+| Before F1 | Extract required ReMap peaks from the saved remap file and save the MF-to-peak-file mapping. |
 | F1 | Compare motif hits or ChIP-seq overlaps at target CpGs with matched background CpGs. |
 | F2 | Measure proximity between selected MFs in the HIPPIE protein-protein-interaction network. |
 | F3 | Test gene-set enrichment of the selected MFs. |
@@ -218,6 +219,14 @@ A setting specifies the edge cut, run aggregation and MF scoring method.
 `rank_1` is the setting with the highest median stability across cohorts.
 The current configuration keeps three settings (`n_selected_stable_settings`).
 Each top setting is used for every cohort.
+
+**Shared ChIP-seq resources**, under `chipseq_dir`
+(default: `results/chipseq_resources/remap2022_hg38/`):
+
+| File | Contents |
+| --- | --- |
+| `peak_files.json` | MF-to-peak-file mapping used by F1 |
+| `peaks/<encoded-symbol>.bed` | Extracted peaks for a gene symbol or alias |
 
 **Stage E to F4: per setting rank**, under `results/selected_settings/rank_<rank>/`:
 

@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 import yaml
 
-steps_by_stage = {"A": ("prepare_data",), "B": ("grn_boost_runs",), "C1": ("sex_filter",), "C2": ("reverse_causality_filter",), "D": ("stability", "stability_comparison"), "E": ("stability_selection", "aggregate_runs", "select_top_mfs"), "F0": ("preprocess_evaluation",), "F1": ("binding_site_validation",), "F2": ("ppi_proximity",), "F3": ("gene_set_enrichment",), "F4": ("mediation",), "G": ("evaluation_summary",)}
+steps_by_stage = {"A": ("prepare_data",), "B": ("grn_boost_runs",), "C1": ("sex_filter",), "C2": ("reverse_causality_filter",), "D": ("stability", "stability_comparison"), "E": ("stability_selection", "aggregate_runs", "select_top_mfs"), "F0": ("preprocess_evaluation",), "F1": ("prepare_chipseq_resources", "binding_site_validation",), "F2": ("ppi_proximity",), "F3": ("gene_set_enrichment",), "F4": ("mediation",), "G": ("evaluation_summary",)}
 
 def get_stage_output_paths(config, stage):
     cohorts = config["cohorts"]
@@ -25,7 +25,7 @@ def get_stage_output_paths(config, stage):
     return [f"results/selected_settings/rank_{selection_rank}/evaluation_summary/{filename}" for selection_rank in selection_ranks for filename in ("evaluation_summary.tsv", "enrichment_top_terms.tsv")] # stage G
 
 
-def snakemake(output_paths, selected_steps, args, config):
+def snakemake(output_paths, selected_steps, args, config, config_overrides=()):
     """Run selected steps and repeat interrupted jobs."""
     command = ["snakemake", *output_paths, "--latency-wait", "60", "--rerun-incomplete", "--resources", f"prepare_jobs={config['prepare_max_parallel']}", f"grn_jobs={config['grn_max_parallel']}"]
     if args.executor == "local":
@@ -34,10 +34,10 @@ def snakemake(output_paths, selected_steps, args, config):
         command.extend(("--executor", "slurm", "--jobs", str(config["slurm_jobs"])))
         if config["slurm_account"]:
             command.extend(("--default-resources", f"slurm_account={config['slurm_account']}"))
+    if config_overrides:
+        command.extend(("--config", *config_overrides))
     command.extend(("--allowed-rules", *selected_steps))
     subprocess.run(command, check=True)
-
-
 
  
 def main():
@@ -45,18 +45,28 @@ def main():
     parser.add_argument("stage")
     parser.add_argument("--executor")
     parser.add_argument("--cores")
+    parser.add_argument("--mfs", nargs="+")
     args = parser.parse_args()
 
     config = yaml.safe_load(Path("config.yaml").read_text())
+
+    if args.stage == "union_evaluation":
+        subprocess.run([sys.executable, "-m", "scripts.prepare_union"], check=True)
+        union_steps = ["union_evaluation", *[step for stage in ("F1", "F2", "F3", "F4") for step in steps_by_stage[stage]]]
+        snakemake(["union_evaluation"], union_steps, args, config, ("evaluation_folder=results/union",))
+        return
+    
+    if args.stage == "manually_evaluation":
+        subprocess.run([sys.executable, "-m", "scripts.prepare_manually_selected_mf_evaluation", "--mfs", *args.mfs], check=True)
+        evaluation_steps = [args.stage, "binding_site_validation", "ppi_proximity", "gene_set_enrichment"]
+        snakemake([args.stage], evaluation_steps, args, config, ("evaluation_folder=results/manual_mfs",))
+        return
+    
     if args.stage != "all":
         snakemake(get_stage_output_paths(config, args.stage), steps_by_stage[args.stage], args, config)
         return
+    
     selected_steps = [step for steps in steps_by_stage.values() for step in steps]
-    downloaded = Path("results/chipseq.done")
-    if not downloaded.is_file():
-        snakemake(get_stage_output_paths(config, "F0"), selected_steps, args, config)
-        subprocess.run([sys.executable, "-m", "scripts.download_chipseq_peaks", "--from-pipeline-results", "results"], check=True)
-        downloaded.touch() 
     snakemake(get_stage_output_paths(config, "G"), selected_steps, args, config)
 
 
