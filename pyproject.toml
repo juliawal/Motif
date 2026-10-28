@@ -23,17 +23,14 @@ dependencies = [
     "pyfaidx>=0.7",
     "pybedtools>=0.9",
     "pyjaspar>=2.0",
-]
+    "snakemake==9.21.0"]
 
 [project.scripts]
 motif = "pipeline.run_pipeline:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = [
-    "adapted_grnboost", "data_processing", "filtering", "selection", "utils",
-    "evaluation", "evaluation.*", "pipeline", "scripts",
-]
+include = ["adapted_grnboost", "data_processing", "filtering", "selection", "utils", "evaluation", "evaluation.*", "pipeline", "scripts"]
 
 [tool.setuptools.package-data]
 adapted_grnboost = ["LICENSE.upstream.txt"]
