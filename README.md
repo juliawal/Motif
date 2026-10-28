@@ -82,7 +82,7 @@ unpacked below. Data and references are not included in this repository.
 | `JASPAR2024.sqlite` | Gene-to-motif lookup: [JASPAR2024 database from pyjaspar 4.0.0](https://raw.githubusercontent.com/asntech/pyjaspar/v4.0.0/pyjaspar/data/JASPAR2024.sqlite) |
 | `hippie.txt` | Human protein interactions: [HIPPIE v2.3 TAB](https://cbdm-01.zdv.uni-mainz.de/~mschaefer/hippie/hippie_v2_3.txt) |
 
-Build the reference tables and download the gene-set libraries:
+Build the reference tables and download the gene-set libraries and ReMap ChIP-seq files:
 
 ```bash
 # Build gene information, transcript TSS positions and the protein-coding gene list.
@@ -112,13 +112,9 @@ python -m scripts.build_fasta_index resources/hg38.fa
 python -m scripts.download_gene_set_enrichment_libraries \
   --config config.yaml --output-dir resources/gene_sets
 
-# Download the complete ReMap catalogue.
+# Download the complete ReMap file.
 python -m scripts.download_and_prepare_chip_seq_peak_files download --config config.yaml
 ```
-
-The gene set libraries are downloaded from [Enrichr](https://maayanlab.cloud/Enrichr/):
-`MSigDB_Hallmark_2020`, `Reactome_2022`, `GO_Biological_Process_2023` and
-`GO_Molecular_Function_2023`.
 
 ## Run
 
@@ -186,7 +182,7 @@ Inputs are saved under `results/manual_mfs/`; evaluation results are in `results
 | D | Compare MF lists from split halves of the GRN runs using Kuncheva stability; rank settings across cohorts. |
 | E | Apply each selected setting to all runs, aggregate edges and select the top MFs per cohort. |
 | F0 | Add gene symbols and prepare the selected MF–CpG pairs for evaluation. |
-| Before F1 | Extract required ReMap peaks from the saved remap file and save the MF-to-peak-file mapping. |
+| Before F1 | Extract required ReMap peaks from the saved ReMap file and save the MF-to-peak-file mapping. |
 | F1 | Compare motif hits or ChIP-seq overlaps at target CpGs with matched background CpGs. |
 | F2 | Measure proximity between selected MFs in the HIPPIE protein-protein-interaction network. |
 | F3 | Test gene-set enrichment of the selected MFs. |
@@ -219,14 +215,6 @@ A setting specifies the edge cut, run aggregation and MF scoring method.
 `rank_1` is the setting with the highest median stability across cohorts.
 The current configuration keeps three settings (`n_selected_stable_settings`).
 Each top setting is used for every cohort.
-
-**Shared ChIP-seq resources**, under `chipseq_dir`
-(default: `results/chipseq_resources/remap2022_hg38/`):
-
-| File | Contents |
-| --- | --- |
-| `peak_files.json` | MF-to-peak-file mapping used by F1 |
-| `peaks/<encoded-symbol>.bed` | Extracted peaks for a gene symbol or alias |
 
 **Stage E to F4: per setting rank**, under `results/selected_settings/rank_<rank>/`:
 
