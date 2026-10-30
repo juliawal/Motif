@@ -182,7 +182,6 @@ Inputs are saved under `results/manual_mfs/`; evaluation results are in `results
 | D | Compare MF lists from split halves of the GRN runs using Kuncheva stability; rank settings across cohorts. |
 | E | Apply each selected setting to all runs, aggregate edges and select the top MFs per cohort. |
 | F0 | Add gene symbols and prepare the selected MF–CpG pairs for evaluation. |
-| Before F1 | Extract required ReMap peaks from the saved ReMap file and save the MF-to-peak-file mapping. |
 | F1 | Compare motif hits or ChIP-seq overlaps at target CpGs with matched background CpGs. |
 | F2 | Measure proximity between selected MFs in the HIPPIE protein-protein-interaction network. |
 | F3 | Test gene-set enrichment of the selected MFs. |
