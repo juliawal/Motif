@@ -39,7 +39,7 @@ def main():
     args.binding_sites_results_directory.mkdir(parents=True, exist_ok=True)
 
     # Prepare genes.
-    mf_cpg_pairs = pd.read_csv(args.mf_cpg_pairs, sep="\t", usecols=["MF", "CpG"])
+    mf_cpg_pairs = pd.read_csv(args.mf_cpg_pairs, sep="\t", usecols=["MF", "MF_ensembl", "CpG"])
     mf_symbols = mf_cpg_pairs["MF"].unique().tolist()
     target_cpgs_by_mf = {mf_symbol: set(mf_cpg_pairs_for_mf["CpG"]) for mf_symbol, mf_cpg_pairs_for_mf in mf_cpg_pairs.groupby("MF")}
     gene_symbol_aliases = load_symbol_aliases(args.gene_annotation_file)
@@ -154,6 +154,22 @@ def main():
     binding_site_evaluation_summary.to_csv(args.summary, sep="\t", index=False)
     args.output.parent.mkdir(parents=True, exist_ok=True) 
     binding_site_evaluation_results.to_csv(args.output, sep="\t", index=False)
+
+    # Save the target-CpG results for downstream analyses.
+    binding_results_by_mf = binding_site_evaluation_results.set_index("MF")
+    target_cpg_hits = []
+    for pair in mf_cpg_pairs.itertuples():
+        mf_symbol, cpg_id = pair.MF, pair.CpG
+        result = binding_results_by_mf.loc[mf_symbol]
+        cpg_passed_filters = cpg_id in target_cpgs_by_mf[mf_symbol]
+        binding_hit = ""
+        if cpg_passed_filters and result["status"] == "tested":
+            if result["track"] == "FIMO":
+                binding_hit = cpg_id in motif_hit_cpgs_by_mf[mf_symbol]
+            else:
+                binding_hit = cpg_id in chipseq_hit_cpgs_by_mf[mf_symbol]
+        target_cpg_hits.append([mf_symbol, pair.MF_ensembl, cpg_id, result["track"], result["status"], cpg_passed_filters, binding_hit])
+    pd.DataFrame(target_cpg_hits, columns=["MF", "MF_ensembl", "CpG", "track", "f1_status", "cpg_passed_filters", "binding_hit"]).to_csv(args.binding_sites_results_directory / "target_cpg_hits.tsv", sep="\t", index=False)
 
 
 if __name__ == "__main__":
