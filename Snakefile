@@ -15,6 +15,7 @@ chipseq_resources_dir = Path(config["chipseq_dir"])
 evaluation_folder = config["evaluation_folder"]
 evaluation_cohort_folder = evaluation_folder + "/{cohort}"
 evaluation_prepared_folder = "results/{cohort}/prepared"
+ppi_output_filenames = ["ppi_proximity.tsv", "ppi_proximity_per_mf.tsv"]
 if evaluation_folder == "results/manual_mfs":
     evaluation_cohort_folder = evaluation_folder
     evaluation_prepared_folder = evaluation_folder + "/prepared"
@@ -48,7 +49,7 @@ rule all:
         # expand() creates a list of file paths for all combinations.
         expand("results/selected_settings/rank_{selection_rank}/{cohort}/selected_mfs/mfs.tsv", selection_rank=selection_ranks, cohort=cohorts),
         expand("results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/binding_sites.tsv", selection_rank=selection_ranks, cohort=cohorts),
-        expand("results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/ppi_proximity.tsv", selection_rank=selection_ranks, cohort=cohorts),
+        expand("results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/{filename}", selection_rank=selection_ranks, cohort=cohorts, filename=ppi_output_filenames),
         expand("results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/gene_set_enrichment.tsv", selection_rank=selection_ranks, cohort=cohorts),
         expand("results/selected_settings/rank_{selection_rank}/{cohort}/evaluation/mediation.tsv", selection_rank=selection_ranks, cohort=cohorts),
         expand("results/selected_settings/rank_{selection_rank}/evaluation_summary/evaluation_summary.tsv", selection_rank=selection_ranks),
@@ -78,13 +79,13 @@ rule evaluation:
 
 rule union_evaluation:
     input:
-        expand("results/union/{cohort}/evaluation/{filename}", cohort=cohorts, filename=["binding_sites.tsv", "ppi_proximity.tsv", "gene_set_enrichment.tsv", "mediation.tsv"]),
+        expand("results/union/{cohort}/evaluation/{filename}", cohort=cohorts, filename=["binding_sites.tsv", *ppi_output_filenames, "gene_set_enrichment.tsv", "mediation.tsv"]),
 
 
 rule manually_evaluation:
     input:
         "results/manual_mfs/evaluation/binding_sites.tsv",
-        "results/manual_mfs/evaluation/ppi_proximity.tsv",
+        expand("results/manual_mfs/evaluation/{filename}", filename=ppi_output_filenames),
         "results/manual_mfs/evaluation/gene_set_enrichment.tsv",
 
 
@@ -489,6 +490,7 @@ rule ppi_proximity:
         gene_ids = evaluation_prepared_folder + "/regulator_names.tsv",
     output:
         results = evaluation_cohort_folder + "/evaluation/ppi_proximity.tsv",
+        per_mf = evaluation_cohort_folder + "/evaluation/ppi_proximity_per_mf.tsv",
     params:
         n_random_sets = config["n_random_sets"],
         degree_bin_min_size = config["degree_bin_min_size"],
@@ -590,7 +592,7 @@ rule evaluation_summary:
         selected_mfs = expand("results/selected_settings/rank_{{selection_rank}}/{cohort}/selected_mfs/mfs.tsv", cohort=cohorts),
         mf_cpg_pairs = expand("results/selected_settings/rank_{{selection_rank}}/{cohort}/evaluation_input/mf_cpg_pairs.tsv", cohort=cohorts),
         binding = expand("results/selected_settings/rank_{{selection_rank}}/{cohort}/evaluation/binding_sites.tsv", cohort=cohorts),
-        proximity = expand("results/selected_settings/rank_{{selection_rank}}/{cohort}/evaluation/ppi_proximity.tsv", cohort=cohorts),
+        proximity = expand("results/selected_settings/rank_{{selection_rank}}/{cohort}/evaluation/{filename}", cohort=cohorts, filename=ppi_output_filenames),
         enrichment = expand("results/selected_settings/rank_{{selection_rank}}/{cohort}/evaluation/gene_set_enrichment.tsv", cohort=cohorts),
         mediation = expand("results/selected_settings/rank_{{selection_rank}}/{cohort}/evaluation/mediation.tsv", cohort=cohorts),
     output:

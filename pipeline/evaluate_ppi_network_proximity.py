@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from pathlib import Path
+import numpy as np
 import pandas as pd
 from data_processing.expression_data_preparation import load_ensembl_to_entrez_mapping
 from evaluation.network_proximity.gene_sets_preparation_based_on_ppi import get_background_genes, get_genes_degrees_in_ppi, get_mf_entrez_ids_in_ppi, build_degree_bins, get_degree_matched_genes, sample_degree_matched_genes
@@ -35,6 +36,7 @@ def main():
     mf_entrez_ids = get_mf_entrez_ids_in_ppi(hippie_network, mf_ensembl_ids, ensembl_to_entrez_dict)
 
     ppi_network_proximity_results = pd.DataFrame(columns = ["measure", "n_random_sets", "p_value", "n_mfs_nominated", "n_mfs_in_network"])
+    mf_contributions = []
     if mf_entrez_ids:
         degree_bins = build_degree_bins(genes_degrees_in_ppi, args.degree_bin_min_size)
         degree_matched_genes_by_mf = get_degree_matched_genes(mf_entrez_ids, genes_degrees_in_ppi, degree_bins, dnmt_tet_genes)
@@ -51,6 +53,30 @@ def main():
                 proximity_scores_by_gene = harmonic_centrality_from_enzymes(hippie_network, dnmt_tet_genes)
             p_value = calculate_degree_matched_p_value(proximity_scores_by_gene, mf_entrez_ids, sampled_gene_sets)
             ppi_network_proximity_results.loc[row] = [measure, args.n_random_sets, p_value, len(mf_ensembl_ids), len(mf_entrez_ids)]
+
+            positive_differences = {}
+            for mf_entrez_id in mf_entrez_ids:
+                degree_matched_genes = degree_matched_genes_by_mf[mf_entrez_id]
+                background_scores = []
+                for gene in degree_matched_genes:
+                    gene_score = proximity_scores_by_gene.get(gene, 0.0)
+                    background_scores.append(gene_score)
+                background_mean = np.mean(background_scores)
+
+                mf_score = proximity_scores_by_gene.get(mf_entrez_id, 0.0)
+                difference = mf_score - background_mean
+                if difference < 0:
+                    difference = 0.0
+                positive_differences[mf_entrez_id] = difference
+            positive_difference_sum = np.sum(list(positive_differences.values()))
+            for mf_ensembl_id in mf_ensembl_ids:
+                mf_entrez_id = ensembl_to_entrez_dict.get(mf_ensembl_id)
+                if mf_entrez_id in positive_differences:
+                    if positive_difference_sum > 0:
+                        contribution = positive_differences[mf_entrez_id] / positive_difference_sum
+                    else:
+                        contribution = np.nan
+                    mf_contributions.append([mf_ensembl_id, measure, contribution])
 
     dnmt_tet_gene_symbols = ",".join(dnmt_tet_genes)
     dnmt_tet_entrez_ids = ",".join(str(entrez_id) for entrez_id in dnmt_tet_genes.values())
@@ -69,6 +95,8 @@ def main():
 
     args.output.parent.mkdir(parents=True, exist_ok=True) 
     ppi_network_proximity_results.to_csv(args.output, sep="\t", index=False)
+    pd.DataFrame(mf_contributions, columns=["MF_ensembl", "measure", "contribution"]).to_csv(
+        args.output.with_name("ppi_proximity_per_mf.tsv"), sep="\t", index=False)
 
 
 if __name__ == "__main__":
