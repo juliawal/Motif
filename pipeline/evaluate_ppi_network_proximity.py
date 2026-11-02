@@ -55,6 +55,7 @@ def main():
             ppi_network_proximity_results.loc[row] = [measure, args.n_random_sets, p_value, len(mf_ensembl_ids), len(mf_entrez_ids)]
 
             positive_differences = {}
+            background_means = {}
             for mf_entrez_id in mf_entrez_ids:
                 degree_matched_genes = degree_matched_genes_by_mf[mf_entrez_id]
                 background_scores = []
@@ -62,6 +63,7 @@ def main():
                     gene_score = proximity_scores_by_gene.get(gene, 0.0)
                     background_scores.append(gene_score)
                 background_mean = np.mean(background_scores)
+                background_means[mf_entrez_id] = background_mean
 
                 mf_score = proximity_scores_by_gene.get(mf_entrez_id, 0.0)
                 difference = mf_score - background_mean
@@ -76,7 +78,11 @@ def main():
                         contribution = positive_differences[mf_entrez_id] / positive_difference_sum
                     else:
                         contribution = np.nan
-                    mf_contributions.append([mf_ensembl_id, measure, contribution])
+                    mf_score = proximity_scores_by_gene.get(mf_entrez_id, 0.0)
+                    background_mean = background_means[mf_entrez_id]
+                    mf_contributions.append([
+                        mf_ensembl_id, measure, contribution, mf_score, background_mean
+                    ])
 
     dnmt_tet_gene_symbols = ",".join(dnmt_tet_genes)
     dnmt_tet_entrez_ids = ",".join(str(entrez_id) for entrez_id in dnmt_tet_genes.values())
@@ -95,7 +101,7 @@ def main():
 
     args.output.parent.mkdir(parents=True, exist_ok=True) 
     ppi_network_proximity_results.to_csv(args.output, sep="\t", index=False)
-    pd.DataFrame(mf_contributions, columns=["MF_ensembl", "measure", "contribution"]).to_csv(
+    pd.DataFrame(mf_contributions, columns=["MF_ensembl", "measure", "contribution", "score", "background_mean"]).to_csv(
         args.output.with_name("ppi_proximity_per_mf.tsv"), sep="\t", index=False)
 
 
