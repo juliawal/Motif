@@ -80,9 +80,7 @@ def main():
                         contribution = np.nan
                     mf_score = proximity_scores_by_gene.get(mf_entrez_id, 0.0)
                     background_mean = background_means[mf_entrez_id]
-                    mf_contributions.append([
-                        mf_ensembl_id, measure, contribution, mf_score, background_mean
-                    ])
+                    mf_contributions.append([mf_ensembl_id, measure, contribution, mf_score, background_mean])
 
     dnmt_tet_gene_symbols = ",".join(dnmt_tet_genes)
     dnmt_tet_entrez_ids = ",".join(str(entrez_id) for entrez_id in dnmt_tet_genes.values())
@@ -101,8 +99,7 @@ def main():
 
     args.output.parent.mkdir(parents=True, exist_ok=True) 
     ppi_network_proximity_results.to_csv(args.output, sep="\t", index=False)
-    pd.DataFrame(mf_contributions, columns=["MF_ensembl", "measure", "contribution", "score", "background_mean"]).to_csv(
-        args.output.with_name("ppi_proximity_per_mf.tsv"), sep="\t", index=False)
+    pd.DataFrame(mf_contributions, columns=["MF_ensembl", "measure", "contribution", "score", "background_mean"]).to_csv(args.output.with_name("ppi_proximity_per_mf.tsv"), sep="\t", index=False)
 
 
 if __name__ == "__main__":
