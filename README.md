@@ -39,16 +39,15 @@ Run the preparation steps in this order:
 
 ```bash
 # Keep samples shared by all three matrices and usable metadata; split by TCGA project.
-python -m pipeline.split_data_to_cohorts \
+# Move files into data/<cohort>/ for the cohorts in config.yaml.
+python -m scripts.fill_cohort_dirs \
   --metadata data/raw/GDC-PANCAN.basic_phenotype.tsv \
   --expression data/raw/GDC-PANCAN.htseq_fpkm-uq.tsv \
   --methylation data/raw/GDC-PANCAN.methylation450.tsv \
   --raw-counts data/raw/GDC-PANCAN.htseq_counts.tsv \
-  --output-dir splitted_by_project
-
-# Move files into data/<cohort>/ for the cohorts in config.yaml.
-python -m scripts.fill_cohort_dirs --config config.yaml \
-  --split-dir splitted_by_project --data-dir data
+  --config config.yaml \
+  --split-dir splitted_by_project \
+  --data-dir data
 
 # Convert log2(count + 1) back to rounded integer counts; overwrite these files.
 python -m scripts.repair_raw_counts data/*/raw_counts.tsv
